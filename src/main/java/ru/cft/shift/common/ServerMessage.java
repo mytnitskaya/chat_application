@@ -2,6 +2,7 @@ package ru.cft.shift.common;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ServerMessage {
@@ -24,7 +25,7 @@ public class ServerMessage {
     }
 
     public String message;
-    public List<String> usersNames;
+    public List<String> usersNames = new ArrayList<>();
     public boolean isError;
 
     public static ServerMessage createErrorMessage(String message){

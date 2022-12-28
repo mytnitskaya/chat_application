@@ -10,14 +10,15 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-public class ServerHandler implements Runnable{
-    private ClientView client;
+public class ServerHandler implements Runnable {
+    private ClientModel model;
     private PrintWriter outMessage;
     private BufferedReader inMessage;
     private Socket clientSocket;
-    public ServerHandler(Socket socket, ClientView client) {
+
+    public ServerHandler(ClientModel model, Socket socket) {
         try {
-            this.client = client;
+            this.model = model;
             this.clientSocket = socket;
             this.outMessage = new PrintWriter(socket.getOutputStream());
             this.inMessage = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -37,7 +38,7 @@ public class ServerHandler implements Runnable{
         outMessage.flush();
     }
 
-    public void closeClient(){
+    public void closeClient() {
         try {
             ClientMessage message = new ClientMessage();
             message.isExit = true;
@@ -50,20 +51,30 @@ public class ServerHandler implements Runnable{
             e.printStackTrace();
         }
     }
-    private void startListening(){
+
+    private void startListening() {
         try {
-            while (true) {
+            while (clientSocket.isConnected()) {
                 ServerMessage message = JsonHelper.tryParse(inMessage.readLine(), ServerMessage.class);
-                client.addMessageToChat(message.message);
-                if (message.isError){
-                    client.setIsLogged(false);
-                    closeClient();
+
+                if (message == null) {
+                    continue;
+                }
+
+                if (message.isError) {
+                    onErrorFromServer(message.message);
                     return;
                 }
 
-                client.setUsersList(message.usersNames);
+                model.onMessageReceived(message);
             }
         } catch (Exception e) {
+            onErrorFromServer(e.getMessage());
         }
+    }
+
+    private void onErrorFromServer(String message) {
+        model.onErrorReceived(message);
+        closeClient();
     }
 }

@@ -1,21 +1,14 @@
 package ru.cft.shift.client;
 
-import ru.cft.shift.common.ClientMessage;
 import ru.cft.shift.common.ServerSettings;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.Socket;
 import java.util.List;
 
 public class ClientView extends JFrame {
-    private static String SERVER_HOST;
-    private static int SERVER_PORT;
-    private Socket clientSocket;
-    private ServerHandler server;
-    private String clientName;
     private JTextField inputHost;
     private JTextField inputName;
     private JButton loginButton;
@@ -23,22 +16,20 @@ public class ClientView extends JFrame {
     private JButton sendMessageButton;
     private JTextArea chatTextArea;
     private JTextArea usersTextArea;
+    private ClientModel model;
 
     public void start(ServerSettings settings) {
-        SERVER_PORT = settings.port;
+        model = new ClientModel(this, settings);
+
         InitView();
-
-        String startMessageText = "In order to join the chat, you need to login. "
-                + "Enter the host you want to join and your name"
-                + System.lineSeparator();
-        chatTextArea.append(startMessageText);
+        welcomeMessage();
     }
 
-    public void addMessageToChat(String messageJson) {
-        chatTextArea.append(messageJson);
+    public void addMessageToChat(String messageText) {
+        chatTextArea.append(messageText);
     }
 
-    public void setUsersList(List<String> users){
+    public void setUsersList(List<String> users) {
         usersTextArea.setText("");
         for (String name : users) {
             usersTextArea.append(name);
@@ -46,12 +37,36 @@ public class ClientView extends JFrame {
         }
     }
 
-    public void setIsLogged(boolean isLogged){
+    public void setIsLoggedState(boolean isLogged) {
         inputHost.setEnabled(!isLogged);
         inputName.setEnabled(!isLogged);
         loginButton.setEnabled(!isLogged);
         inputMessage.setEnabled(isLogged);
         sendMessageButton.setEnabled(isLogged);
+        if (!isLogged) {
+            usersTextArea.setText("");
+        }
+    }
+
+    public String getInputHost() {
+        return inputHost.getText().trim();
+    }
+
+    public String getInputName() {
+        return inputName.getText().trim();
+    }
+
+    public String getInputMessage() {
+        return inputName.getText();
+    }
+
+    public void clearInputMessage() {
+        inputName.setText("");
+        inputMessage.grabFocus();
+    }
+
+    public void clearChatTextArea() {
+        chatTextArea.setText("");
     }
 
     private void InitView() {
@@ -130,44 +145,10 @@ public class ClientView extends JFrame {
 
         pack();
 
-        loginButton.addActionListener(e -> onLoginPress());
-        sendMessageButton.addActionListener(e -> onSendPress());
+        loginButton.addActionListener(e -> model.onLoginPress());
+        sendMessageButton.addActionListener(e -> model.onSendPress());
         InitExitListener();
         setVisible(true);
-    }
-
-    private void onLoginPress(){
-        if (inputHost.getText().trim().isEmpty() || inputName.getText().trim().isEmpty()) {
-            String errorLoginMessageText = "You did not enter a host or name. "
-                    + "Until you enter the correct host and name, you will not be able to join the chat."
-                    + System.lineSeparator();
-            chatTextArea.append(errorLoginMessageText);
-            return;
-        }
-        SERVER_HOST = inputHost.getText();
-
-        var success = InitSocket();
-        if (!success) {
-            String failedConnectionMessageText = "Failed to connect to the specified host. "
-                    + "Check if the host is correct and try to login again."
-                    + System.lineSeparator();
-            chatTextArea.append(failedConnectionMessageText);
-            return;
-        }
-
-        new Thread(server).start();
-        clientName = inputName.getText();
-        sendUserNameToServer();
-        setIsLogged(true);
-    }
-
-    private void onSendPress(){
-        if (!inputMessage.getText().trim().isEmpty()) {
-            var message = new ClientMessage(clientName, inputMessage.getText());
-            server.sendMessage(message);
-            inputMessage.setText("");
-            inputMessage.grabFocus();
-        }
     }
 
     private void InitExitListener() {
@@ -175,26 +156,15 @@ public class ClientView extends JFrame {
             @Override
             public void windowClosing(WindowEvent ev) {
                 super.windowClosing(ev);
-                server.closeClient();
+                model.onClose();
             }
         });
     }
 
-    private boolean InitSocket() {
-        var isConnected = false;
-        try {
-            clientSocket = new Socket(SERVER_HOST, SERVER_PORT);
-            server = new ServerHandler(clientSocket, this);
-            isConnected = clientSocket.isConnected();
-        } finally {
-            return isConnected;
-        }
+    private void welcomeMessage() {
+        String startMessageText = "In order to join the chat, you need to login. "
+                + "Enter the host you want to join and your name"
+                + System.lineSeparator();
+        chatTextArea.append(startMessageText);
     }
-
-    private void sendUserNameToServer(){
-        var initMessage = new ClientMessage();
-        initMessage.userName = clientName;
-        server.sendMessage(initMessage);
-    }
-
 }

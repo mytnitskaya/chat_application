@@ -89,6 +89,14 @@ public class ClientHandler implements Runnable {
         return userNameMessage != null ? userNameMessage.userName : null;
     }
 
+    private ClientMessage getNextMessage() {
+        try {
+            return JsonHelper.tryParse(inMessage.readLine(), ClientMessage.class);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     private boolean isUserNameAlreadyExist(String userName) {
         return server.hasAnyClientWithName(userName);
     }
@@ -108,14 +116,4 @@ public class ClientHandler implements Runnable {
             server.sendMessageToAllClients(serverMessage);
         }
     }
-
-    private ClientMessage getNextMessage() {
-        try {
-            return JsonHelper.tryParse(inMessage.readLine(), ClientMessage.class);
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-
 }
